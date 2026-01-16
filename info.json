@@ -1,10 +1,10 @@
 {
-  "name": "[internal-mod-name]",
-  "version": "0.0.0",
-  "title": "[MOD DISPLAY NAME]",
-  "author": "[YOUR MODS.FACTORIO.COM USERNAME]",
-  "homepage": "[HOMEPAGE/REPO URL]",
-  "description": "[SHORT DESCRIPTION]",
+  "name": "animated-trains-lib",
+  "version": "0.0.1",
+  "title": "Animated Trains Library",
+  "author": "Jurgy",
+  "homepage": "https://github.com/jurgyy/Factorio-Animated-Trains-Lib",
+  "description": "Introduces a framework for highly performant animated trains. Not a standalone mod.",
   "factorio_version": "2.0",
   "dependencies": [
     "base"
