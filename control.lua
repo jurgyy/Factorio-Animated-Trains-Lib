@@ -1,7 +1,7 @@
 local floor = math.floor
 
 local rotationframes = 128
-local animationframes = 8
+local animationframes = 16
 local frames_per_circle = animationframes/(math.pi * 2)
 
 ---@alias unit_number integer
@@ -13,6 +13,7 @@ local frames_per_circle = animationframes/(math.pi * 2)
 ---@field animations LuaRenderObject[]? Array of all possible animation sheets the locomotive can use
 ---@field active_sheet integer? Currently active sheet index
 ---@field prev_direction integer? Previously used direction index
+---@field animation_speed_multiplier number? Multiplier for animation speed based on locomotive speed, to make it look better at lower speeds
 
 ---@class Frustum
 ---@field x number x position of the player
@@ -33,10 +34,12 @@ local LOCOMOTIVE_STOCK = {
 }
 
 local locos = {}
-
+---@type table<string, AnimatedTrainsConfig>
+local entity_to_config = {}
 for name, config in pairs(configs) do
-    table.insert(LOCOMOTIVE_STOCK, name)
-		locos[name] = true
+    table.insert(LOCOMOTIVE_STOCK, name .. "-ATL")
+		locos[name .. "-ATL"] = true
+		entity_to_config[name .. "-ATL"] = config
 end
 
 local CAHCE_UPDATE_INTERVAL = 20
@@ -223,9 +226,9 @@ local function get_visible_locomotives(players_by_surface)
 	return visible_locos
 end
 
----@type table<string, table<integer, table<integer, {integer, integer}>>>
+---@type table<string, table<integer, table<integer, table<integer, integer>>>>
 local sheet_indices = {}
-for name, config in pairs(configs) do
+for name, config in pairs(entity_to_config) do
   local spritterLua = config.layers[1].spritter_table
   local frames_per_sheet = spritterLua.line_length * spritterLua.lines_per_file
 
@@ -251,7 +254,7 @@ end
 ---@param train_record TrainRecord
 ---@param locomotive LuaEntity
 local function create_sheets(train_record, locomotive)
-  local config = configs[locomotive.name]
+  local config = entity_to_config[locomotive.name]
 	train_record.animations = {}
 	for sheet = 0, config.layers[1].spritter_table.file_count - 1 do
 		-- draw_animation{animation=…, orientation?=…, x_scale?=…, y_scale?=…, tint?=…, render_layer?=…, animation_speed?=…, animation_offset?=…, orientation_target?=…, use_target_orientation?=…, oriented_offset?=…, target=…, surface=…, time_to_live?=…, blink_interval?=…, forces?=…, players?=…, visible?=…, only_in_alt_mode?=…, render_mode?=…}
@@ -273,27 +276,23 @@ end
 local function draw_locomotives(locomotives)
 	local known_trains = storage.locomotives
 	for unit_number, locomotive in pairs(locomotives) do
-		local train_record = known_trains[unit_number]
-
-		if not train_record then
-			train_record = {previous_frame_angle = 0, frame = -1}
-			known_trains[unit_number] = train_record
-		end
-
 		if not locomotive.valid then
 			known_trains[unit_number] = nil
 			goto continue
+		end
+
+		local train_record = known_trains[unit_number]
+
+		if not train_record then
+			train_record = {previous_frame_angle = 0, frame = -1, animation_speed_multiplier = entity_to_config[locomotive.name].animation_speed_multiplier or 1}
+			known_trains[unit_number] = train_record
 		end
 
 		if not train_record.animations then
 			create_sheets(train_record, locomotive)
 		end
 		
-		local speed = locomotive.speed
-		-- Different frame speed depending on the locomotive's speed to make it look nicer at lower speeds
-		--game.print("Speed ".. unit_number ..": " .. speed, {sound = defines.print_sound.never})
-		speed = speed < 1 and speed * 6 or speed * 5
-		
+		local speed = locomotive.speed * (train_record.animation_speed_multiplier or 1)
 		local direction = floor(locomotive.orientation * rotationframes)
 		
 		local angle_delta = (speed / 6.28) * frames_per_circle
@@ -348,3 +347,10 @@ script.on_event(defines.events.on_tick, function(event)
 	visible_locos = visible_locos_cache
 	draw_locomotives(visible_locos)
 end)
+
+
+local entity_built = require("events/entity_built")
+script.on_event(defines.events.on_built_entity, entity_built.on_built_entity, entity_built.on_built_entity_filter)
+-- script.on_event(defines.events.on_robot_built_entity, entity_built.event, entity_built.filter)
+-- script.on_event(defines.events.script_raised_built, entity_built.event, entity_built.filter)
+-- script.on_event(defines.events.script_raised_revive, entity_built.event, entity_built.filter)

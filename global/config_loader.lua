@@ -1,10 +1,13 @@
 ---@type atl_data_type
 local data_type = "atl-config"
 
-local config_cache = {}
+local config_cache = nil
 
 ---@return table<string, AnimatedTrainsConfig>
 local function get_all_configs()
+  if config_cache then return config_cache end
+  config_cache = {}
+  
   local iterator = nil
   if script then
     iterator = prototypes.mod_data

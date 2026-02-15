@@ -11,6 +11,7 @@
 ---@class AnimatedTrainsConfig
 ---@field name string Name of the train entity this config applies to
 ---@field layers AnimatedTrainsLayer[] Different render layers that make up the animation
+---@field animation_speed_multiplier number? Multiplier for the animation speed, default is 1
 
 ---@class AnimatedTrainsLayer
 ---@field file_path string File path of the sprite sheets without the extension and suffixed with "-<number>" for multiple files
@@ -70,34 +71,24 @@ for name, config in pairs(configs) do
     }})
   end
 
-  local root = "__Animated_trains__/graphics/Decapod_Locomotive/animation5/output4/animation5"
-  local spritterLua = require(root)
-  local frames_last_sheet = spritterLua.sprite_count % (spritterLua.line_length * spritterLua.lines_per_file)
-  for sheet = 0, spritterLua.file_count - 1 do
-    local path = root .. "-" .. sheet
-    
-    local prototypename = "decapod-sheet" .. sheet
-    local shift = spritterLua.shift
-    shift[2] = shift[2] - 0.15
-
-    local frame_count = spritterLua.line_length * spritterLua.lines_per_file
-    if frames_last_sheet ~= 0 and sheet == spritterLua.file_count - 1 then
-      frame_count = frames_last_sheet
-    end
-
-    data:extend({{
-        type = "animation",
-        name = prototypename,
-        layers = {{
-          filename = path .. ".png",
-          height = spritterLua.height,
-          width = spritterLua.width,
-          scale = 0.8,
-          shift = shift,
-          frame_count = frame_count,
-          line_length = spritterLua.line_length,
-          lines_per_file = spritterLua.lines_per_file
-        }}
-    }})
+  ---@type data.RollingStockPrototype
+  local entity = data.raw["locomotive"][name] or data.raw["cargo-wagon"][name]
+  if not entity then
+    error("Animated Trains: Could not find entity '" .. name .. "' to apply animated train config to.")
   end
+  local item = data.raw["item-with-entity-data"][name]
+  if not item then
+    error("Animated Trains: Could not find item-with-entity-data '" .. name .. "' to apply animated train config to.")
+  end
+
+  log("Creating ATL copy of entity '" .. name .. "'")
+  local copy = table.deepcopy(entity)
+  copy.name = name .. "-ATL"
+  copy.pictures = nil
+  copy.factoriopedia_alternative = name
+  copy.hidden_in_factoriopedia = true
+  copy.hidden = false
+  copy.placeable_by = { item = item.name, count = 1 }
+  ---@diagnostic disable-next-line: assign-type-mismatch
+  data:extend({copy})
 end
