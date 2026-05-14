@@ -84,6 +84,8 @@ for name, config in pairs(configs) do
   log("Creating ATL copy of entity '" .. name .. "'")
   local copy = table.deepcopy(entity)
   copy.name = name .. "-ATL"
+  copy.localised_name = copy.localised_name or {"entity-name." .. entity.name }
+  copy.localised_description = copy.localised_description or (entity.localised_description and {"entity-description." .. entity.name }) or nil
   copy.pictures = nil
   copy.factoriopedia_alternative = name
   copy.hidden_in_factoriopedia = true
