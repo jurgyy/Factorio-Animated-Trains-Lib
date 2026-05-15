@@ -1,8 +1,6 @@
 local floor = math.floor
 
 local rotationframes = 128
-local animationframes = 16
-local frames_per_circle = animationframes/(math.pi * 2)
 
 ---@alias unit_number integer
 ---@alias surface_index integer
@@ -238,7 +236,7 @@ for name, config in pairs(entity_to_config) do
   for direction = 0, rotationframes - 1  do
     sheet[direction] = {}
 
-    for frame = 0, animationframes - 1 do
+    for frame = 0, config.frames_per_rotation - 1 do
       sheet[direction][frame] = { sheet_number, index }
       index = index + 1
 
@@ -272,6 +270,7 @@ local function create_sheets(train_record, locomotive)
 	end
 end
 
+local four_pi_squared = 4 * math.pi^2
 ---@param locomotives table<unit_number, LuaEntity>
 local function draw_locomotives(locomotives)
 	local known_trains = storage.locomotives
@@ -282,9 +281,9 @@ local function draw_locomotives(locomotives)
 		end
 
 		local train_record = known_trains[unit_number]
-
+		local config = entity_to_config[locomotive.name]
 		if not train_record then
-			train_record = {previous_frame_angle = 0, frame = -1, animation_speed_multiplier = entity_to_config[locomotive.name].animation_speed_multiplier or 1}
+			train_record = {previous_frame_angle = 0, frame = -1, animation_speed_multiplier = config.animation_speed_multiplier or 1}
 			known_trains[unit_number] = train_record
 		end
 
@@ -295,9 +294,13 @@ local function draw_locomotives(locomotives)
 		local speed = locomotive.speed * (train_record.animation_speed_multiplier or 1)
 		local direction = floor(locomotive.orientation * rotationframes)
 		
-		local angle_delta = (speed / 6.28) * frames_per_circle
+		local angle_delta = (speed * config.frames_per_rotation) / four_pi_squared
+		-- Above is the simplified version of:
+		-- local frames_per_circle = config.frames_per_rotation/(math.pi * 2)
+		-- local angle_delta = (speed / 6.28) * frames_per_circle
+		
 		local next_frame_angle = (train_record.previous_frame_angle or 0) + angle_delta
-		local frame_angle = next_frame_angle % animationframes
+		local frame_angle = next_frame_angle % config.frames_per_rotation
 		
 		local frame = floor(frame_angle)
 		local prev_frame = train_record.frame

@@ -12,6 +12,7 @@
 ---@field name string Name of the train entity this config applies to
 ---@field layers AnimatedTrainsLayer[] Different render layers that make up the animation
 ---@field animation_speed_multiplier number? Multiplier for the animation speed, default is 1
+---@field frames_per_rotation integer Number of frames per rotation axis
 
 ---@class AnimatedTrainsLayer
 ---@field file_path string File path of the sprite sheets without the extension and suffixed with "-<number>" for multiple files
