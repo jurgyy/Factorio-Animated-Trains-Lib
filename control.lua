@@ -25,7 +25,7 @@ script.on_init(function()
 	storage.locomotives = {}
 end)
 
-local configs = require("global/config_loader")
+local configs = require("global/config_loader").get_rolling_stock_config()
 
 local LOCOMOTIVE_STOCK = {
 	-- "Decapod_locomotive"
@@ -354,6 +354,6 @@ end)
 
 local entity_built = require("events/entity_built")
 script.on_event(defines.events.on_built_entity, entity_built.on_built_entity, entity_built.on_built_entity_filter)
--- script.on_event(defines.events.on_robot_built_entity, entity_built.event, entity_built.filter)
+script.on_event(defines.events.on_robot_built_entity, entity_built.on_robot_built_entity, entity_built.on_robot_built_entity_filter)
 -- script.on_event(defines.events.script_raised_built, entity_built.event, entity_built.filter)
 -- script.on_event(defines.events.script_raised_revive, entity_built.event, entity_built.filter)

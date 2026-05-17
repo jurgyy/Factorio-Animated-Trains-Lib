@@ -34,7 +34,7 @@
 
 --------
 
-local configs = require("global/config_loader")
+local configs = require("global/config_loader").get_rolling_stock_config()
 
 for name, config in pairs(configs) do
   local spritter_lua = config.layers[1].spritter_table
