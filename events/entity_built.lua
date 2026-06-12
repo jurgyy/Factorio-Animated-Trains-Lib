@@ -1,4 +1,49 @@
-local entity_built_configs = require("global/config_loader").get_entity_built_config()
+local config_loader = require("global/config_loader")
+local entity_built_configs = config_loader.get_entity_built_config()
+local rolling_stock_config = config_loader.get_rolling_stock_config()
+
+local name_to_atl_name = {}
+local atl_name_to_name = {}
+for entity_name, _ in pairs(rolling_stock_config) do
+  local atl_name = entity_name .. "-ATL"
+  name_to_atl_name[entity_name] = atl_name
+  atl_name_to_name[atl_name] = entity_name
+end
+
+local function call_remote_built_events(source_entity_name, event)
+  local remotes = entity_built_configs[source_entity_name]
+  if remotes then
+    for _, remote_interface in pairs(remotes) do
+      remote.call(remote_interface.remote_interface, remote_interface.remote_function, event)
+    end
+  end
+end
+
+local function handle_source_loco_built(event, entity, atl_name)
+  if not prototypes.entity[atl_name] then return end
+
+  local surface = entity.surface
+  ---@type LuaSurface.create_entity_param.locomotive | LuaSurface.create_entity_param.cargo_wagon
+  local entity_data = {
+    name = atl_name,
+    position = entity.position,
+    direction = entity.direction,
+    force = entity.force,
+    raise_built = true,
+    create_build_effect_smoke = false,
+  }
+  local source_entity_name = entity.name  
+  entity.destroy()
+
+  local new_entity = surface.create_entity(entity_data)
+  if not new_entity then
+    game.print("Failed to create entity: " .. atl_name)
+    return
+  end
+
+  event.entity = new_entity
+  call_remote_built_events(source_entity_name, event)
+end
 
 local entity_built = {}
 
@@ -8,34 +53,14 @@ entity_built.on_built_entity = function(event)
   local entity = event.entity
   if not entity or not entity.valid then return end
 
-  local name = entity.name .. "-ATL"
-  if not prototypes.entity[name] then return end
-
-  local surface = entity.surface
-  ---@type LuaSurface.create_entity_param.locomotive | LuaSurface.create_entity_param.cargo_wagon
-  local entity_data = {
-    name = name,
-    position = entity.position,
-    direction = entity.direction,
-    force = entity.force,
-    raise_built = true,
-    create_build_effect_smoke = false,
-  }
-  local entity_name = entity.name  
-  entity.destroy()
-
-  local new_entity = surface.create_entity(entity_data)
-  if not new_entity then
-    game.print("Failed to create entity: " .. name)
-    return
-  end
-
-  event.entity = new_entity
-  local remotes = entity_built_configs[entity_name]
-  if remotes then
-    for _, remote_interface in pairs(remotes) do
-      remote.call(remote_interface.remote_interface, remote_interface.remote_function, event)
-    end
+  local atl_name = name_to_atl_name[entity.name]
+  local source_name = atl_name_to_name[entity.name]
+  if source_name then
+    -- ATL entity built
+    call_remote_built_events(source_name, event)
+  elseif atl_name then
+    -- Source entity built
+    handle_source_loco_built(event, entity, atl_name)
   end
 end
 
