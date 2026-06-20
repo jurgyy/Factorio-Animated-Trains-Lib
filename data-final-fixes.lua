@@ -17,9 +17,9 @@
 ---@class AnimatedTrainsLayer
 ---@field file_path string File path of the sprite sheets without the extension and suffixed with "-<number>" for multiple files
 ---@field spritter_table SpritterOutput
----@field draw_as_shadow boolean
----@field draw_as_glow boolean
----@field draw_as_light boolean
+---@field draw_as_shadow boolean?
+---@field draw_as_glow boolean?
+---@field draw_as_light boolean?
 
 ---@class SpritterOutput Lua Table that the spritter sprite sheet tool generates - https://github.com/fgardt/factorio-spritter
 ---@field spritter integer[] Spritter version
