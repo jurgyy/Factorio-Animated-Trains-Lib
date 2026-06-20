@@ -32,7 +32,7 @@ local function handle_source_loco_built(event, entity, atl_name)
     raise_built = true,
     create_build_effect_smoke = false,
   }
-  local source_entity_name = entity.name  
+  local source_entity_name = entity.name
   entity.destroy()
 
   local new_entity = surface.create_entity(entity_data)
@@ -64,7 +64,12 @@ entity_built.on_built_entity = function(event)
   end
 end
 
+-- ---@param event EventData.script_raised_built
+-- entity_built.script_raised_built = function(event)
+-- end
+
 entity_built.on_robot_built_entity = entity_built.on_built_entity
+entity_built.script_raised_built = entity_built.on_built_entity
 
 -- TODO fix ghost built trains
 entity_built.on_built_entity_filter = {
@@ -81,5 +86,6 @@ entity_built.on_built_entity_filter = {
 }
 
 entity_built.on_robot_built_entity_filter = entity_built.on_built_entity_filter
+entity_built.script_built_filter = entity_built.on_built_entity_filter
 
 return entity_built
