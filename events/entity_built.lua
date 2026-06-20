@@ -31,6 +31,11 @@ local function handle_source_loco_built(event, entity, atl_name)
     force = entity.force,
     raise_built = true,
     create_build_effect_smoke = false,
+    orientation = entity.orientation,
+    enable_logistics_while_moving = entity.enable_logistics_while_moving,
+    grid = entity.grid,
+    color = entity.color,
+    copy_color_from_train_stop = entity.copy_color_from_train_stop
   }
   local source_entity_name = entity.name
   entity.destroy()
