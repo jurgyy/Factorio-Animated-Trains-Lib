@@ -259,7 +259,7 @@ local function create_sheets(train_record, locomotive)
 		local animation = rendering.draw_animation{
 			animation = "atl-" .. config.name .. "-" .. sheet,
 			orientation = 0,
-			render_layer = "above-inserters",
+			render_layer = "object",
 			target = locomotive,
 			surface = locomotive.surface,
 			animation_offset = 0,
