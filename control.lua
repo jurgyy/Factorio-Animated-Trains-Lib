@@ -16,7 +16,8 @@ local rotationframes = 128
 ---@field prev_direction integer? Previously used direction index
 ---@field animation_speed_multiplier number? Multiplier for animation speed based on locomotive speed
 ---@field config AnimatedTrainsConfig   -- cached config for this locomotive
----@field sheets table                  -- cached sheet lookup table for this locomotive
+---@field sheets_numbers table                  -- cached sheet number for this locomotive
+---@field sheets_offsets table                  -- cached sheet offset for this locomotive
 ---@field frames_per_rotation integer
 ---@field frame_factor number         -- frames_per_rotation / four_pi_squared
 
@@ -231,20 +232,25 @@ local function get_visible_locomotives(players_by_surface)
 	return visible_locos
 end
 
----@type table<string, table<integer, table<integer, table<integer, integer>>>>
-local sheet_indices = {}
+---@type table<string, table<integer, table<integer, integer>>>
+local sheet_indices_numbers = {}
+---@type table<string, table<integer, table<integer, integer>>>
+local sheet_indices_offsets = {}
 for name, config in pairs(entity_to_config) do
   local spritterLua = config.layers[1].spritter_table
   local frames_per_sheet = spritterLua.line_length * spritterLua.lines_per_file
 
-  local sheet = {}
+  local sheet_numbers = {}
+  local sheet_offsets = {}
   local sheet_number = 0
   local index = 0
   for direction = 0, rotationframes - 1  do
-    sheet[direction] = {}
+    sheet_numbers[direction] = {}
+    sheet_offsets[direction] = {}
 
     for frame = 0, config.frames_per_rotation - 1 do
-      sheet[direction][frame] = { sheet_number, index }
+      sheet_numbers[direction][frame] = sheet_number
+			sheet_offsets[direction][frame] = index
       index = index + 1
 
       if index >= frames_per_sheet then
@@ -253,7 +259,8 @@ for name, config in pairs(entity_to_config) do
       end
     end
   end
-  sheet_indices[name] = sheet
+  sheet_indices_numbers[name] = sheet_numbers
+  sheet_indices_offsets[name] = sheet_offsets
 end
 
 ---@param train_record TrainRecord
@@ -319,7 +326,8 @@ local function draw_locomotives(locomotives)
 				active_sheet = nil,
 
 				config = config,
-				sheets = sheet_indices[locomotive.name],
+				sheets_numbers = sheet_indices_numbers[locomotive.name],
+				sheets_offsets = sheet_indices_offsets[locomotive.name],
 
 				frames_per_rotation = frames_per_rotation,
 				frame_factor = frames_per_rotation / four_pi_squared,
@@ -346,9 +354,8 @@ local function draw_locomotives(locomotives)
 			end
 
 			local frame = train_record.frame
-			local sheet_info = train_record.sheets[direction][frame]
-			local sheet_number = sheet_info[1]
-			local index = sheet_info[2]
+			local sheet_number = train_record.sheets_numbers[direction][frame]
+			local index = train_record.sheets_offsets[direction][frame]
 			local animation = train_record.animations[sheet_number]
 
 			animation.animation_offset = index
@@ -405,9 +412,8 @@ local function draw_locomotives(locomotives)
 			goto continue
 		end
 
-		local sheet_info = train_record.sheets[direction][frame]
-		local sheet_number = sheet_info[1]
-		local index = sheet_info[2]
+		local sheet_number = train_record.sheets_numbers[direction][frame]
+		local index = train_record.sheets_offsets[direction][frame]
 		local animation = train_record.animations[sheet_number]
 
 		animation.animation_offset = index
