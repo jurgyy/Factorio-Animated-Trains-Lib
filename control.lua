@@ -1,6 +1,8 @@
 local ceil = math.ceil
 local floor = math.floor
 local abs = math.abs
+local max = math.max
+local sqrt = math.sqrt
 
 local rotationframes = 128
 
@@ -125,9 +127,9 @@ local function get_players_frustums()
 			local dx = half_width + margin_width
 			local dy = half_height + margin_height
 
-			local dm = math.max(dx, dy)
+			local dm = max(dx, dy)
 			local max_dist_sq = 2 * dm * dm
-			local max_dist = math.sqrt(max_dist_sq)
+			local max_dist = sqrt(max_dist_sq)
 
 			local surface_index = player.surface.index
 			local arr = players_by_surface[surface_index]
