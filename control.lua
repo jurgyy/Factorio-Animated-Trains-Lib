@@ -1,4 +1,6 @@
+local ceil = math.ceil
 local floor = math.floor
+local abs = math.abs
 
 local rotationframes = 128
 
@@ -6,12 +8,15 @@ local rotationframes = 128
 ---@alias surface_index integer
 
 ---@class TrainRecord
----@field previous_frame_angle number
 ---@field frame integer
+---@field frame_progress number         -- fractional progress within current frame [0,1)
+---@field ticks_until_update integer?   -- how many ticks can be skipped before the frame might change
 ---@field animations LuaRenderObject[]? Array of all possible animation sheets the locomotive can use
 ---@field active_sheet integer? Currently active sheet index
 ---@field prev_direction integer? Previously used direction index
----@field animation_speed_multiplier number? Multiplier for animation speed based on locomotive speed, to make it look better at lower speeds
+---@field animation_speed_multiplier number? Multiplier for animation speed based on locomotive speed
+---@field config AnimatedTrainsConfig   -- cached config for this locomotive
+---@field sheets table                  -- cached sheet lookup table for this locomotive
 
 ---@class Frustum
 ---@field x number x position of the player
@@ -270,10 +275,27 @@ local function create_sheets(train_record, locomotive)
 	end
 end
 
+---@param frame_progress number   -- fractional progress in [0,1)
+---@param abs_frame_delta number  -- absolute number of frames advanced per tick
+---@return integer
+local function compute_ticks_until_update(frame_progress, abs_frame_delta)
+	if abs_frame_delta <= 0 then
+		return 0
+	end
+
+	local remaining = 1 - frame_progress
+	local ticks = ceil(remaining / abs_frame_delta) - 1
+	if ticks < 0 then
+		return 0
+	end
+	return ticks
+end
+
 local four_pi_squared = 4 * math.pi^2
 ---@param locomotives table<unit_number, LuaEntity>
 local function draw_locomotives(locomotives)
 	local known_trains = storage.locomotives
+
 	for unit_number, locomotive in pairs(locomotives) do
 		if not locomotive.valid then
 			known_trains[unit_number] = nil
@@ -281,41 +303,106 @@ local function draw_locomotives(locomotives)
 		end
 
 		local train_record = known_trains[unit_number]
-		local config = entity_to_config[locomotive.name]
 		if not train_record then
-			train_record = {previous_frame_angle = 0, frame = -1, animation_speed_multiplier = config.animation_speed_multiplier or 1}
+			local config = entity_to_config[locomotive.name]
+			train_record = {
+				frame = 0,
+				frame_progress = 0,
+				ticks_until_update = 0,
+				skipped_ticks = 0,
+				animation_speed_multiplier = config.animation_speed_multiplier or 1,
+				prev_direction = nil,
+				active_sheet = nil,
+				config = config,
+				sheets = sheet_indices[locomotive.name],
+			}
 			known_trains[unit_number] = train_record
 		end
 
 		if not train_record.animations then
 			create_sheets(train_record, locomotive)
 		end
-		
-		local speed = locomotive.speed * (train_record.animation_speed_multiplier or 1)
+
+		local config = train_record.config
+		local frames_per_rotation = config.frames_per_rotation
+
+		local speed = locomotive.speed * train_record.animation_speed_multiplier
 		local direction = floor(locomotive.orientation * rotationframes)
-		
-		local angle_delta = (speed * config.frames_per_rotation) / four_pi_squared
+		local prev_direction = train_record.prev_direction
+
+		if speed == 0 then
+			train_record.ticks_until_update = nil
+			train_record.skipped_ticks = 0
+
+			if prev_direction == direction then
+				goto continue
+			end
+
+			local frame = train_record.frame
+			local sheet_info = train_record.sheets[direction][frame]
+			local sheet_number = sheet_info[1]
+			local index = sheet_info[2]
+			local animation = train_record.animations[sheet_number]
+
+			animation.animation_offset = index
+
+			local active_sheet = train_record.active_sheet
+			if active_sheet ~= sheet_number then
+				if active_sheet then
+					train_record.animations[active_sheet].visible = false
+				end
+				animation.visible = true
+				train_record.active_sheet = sheet_number
+			end
+
+			train_record.prev_direction = direction
+			goto continue
+		end
+
+		local frame_delta = (speed * frames_per_rotation) / four_pi_squared
 		-- Above is the simplified version of:
 		-- local frames_per_circle = config.frames_per_rotation/(math.pi * 2)
 		-- local angle_delta = (speed / 6.28) * frames_per_circle
-		
-		local next_frame_angle = (train_record.previous_frame_angle or 0) + angle_delta
-		local frame_angle = next_frame_angle % config.frames_per_rotation
-		
-		local frame = floor(frame_angle)
-		local prev_frame = train_record.frame
 
-		train_record.previous_frame_angle = frame_angle
-		if direction == train_record.prev_direction and prev_frame == frame then
+		-- Same direction and we know we cannot hit the next frame yet
+		if prev_direction == direction then
+			local ticks_until_update = train_record.ticks_until_update
+			if ticks_until_update and ticks_until_update > 0 then
+				train_record.ticks_until_update = ticks_until_update - 1
+				train_record.skipped_ticks = train_record.skipped_ticks + 1
+				goto continue
+			end
+		end
+
+		-- Full update: apply skipped ticks + this tick
+		local elapsed_ticks = train_record.skipped_ticks + 1
+		train_record.skipped_ticks = 0
+
+		local frame = train_record.frame
+		local frame_progress = train_record.frame_progress + frame_delta * elapsed_ticks
+
+		-- floor() works for positive and negative values, but we want frame_progress normalized to [0,1)
+		local whole_frames = floor(frame_progress)
+		frame_progress = frame_progress - whole_frames
+		frame = (frame + whole_frames) % frames_per_rotation
+
+		local frame_changed = (frame ~= train_record.frame)
+		local direction_changed = (direction ~= prev_direction)
+
+		train_record.frame = frame
+		train_record.frame_progress = frame_progress
+		train_record.prev_direction = direction
+		train_record.ticks_until_update = compute_ticks_until_update(frame_progress, abs(frame_delta))
+
+		if not frame_changed and not direction_changed then
 			goto continue
 		end
-		train_record.prev_direction = direction
-		train_record.frame = frame
-		
-		local sheet_info = sheet_indices[locomotive.name][direction][frame]
+
+		local sheet_info = train_record.sheets[direction][frame]
 		local sheet_number = sheet_info[1]
 		local index = sheet_info[2]
 		local animation = train_record.animations[sheet_number]
+
 		animation.animation_offset = index
 
 		local active_sheet = train_record.active_sheet
@@ -330,6 +417,8 @@ local function draw_locomotives(locomotives)
 		::continue::
 	end
 end
+
+local profiler = helpers.create_profiler(true)
 
 ---@param event EventData.on_tick
 script.on_event(defines.events.on_tick, function(event)
@@ -348,7 +437,13 @@ script.on_event(defines.events.on_tick, function(event)
 	
 	frustums_by_surface = frustums_cache
 	visible_locos = visible_locos_cache
-	draw_locomotives(visible_locos)
+	
+	profiler.reset()
+	for i=1,1 do
+		draw_locomotives(visible_locos)
+	end
+	profiler.stop()
+	game.print( profiler )
 end)
 
 
