@@ -17,6 +17,8 @@ local rotationframes = 128
 ---@field animation_speed_multiplier number? Multiplier for animation speed based on locomotive speed
 ---@field config AnimatedTrainsConfig   -- cached config for this locomotive
 ---@field sheets table                  -- cached sheet lookup table for this locomotive
+---@field frames_per_rotation integer
+---@field frame_factor number         -- frames_per_rotation / four_pi_squared
 
 ---@class Frustum
 ---@field x number x position of the player
@@ -257,10 +259,10 @@ end
 ---@param train_record TrainRecord
 ---@param locomotive LuaEntity
 local function create_sheets(train_record, locomotive)
-  local config = entity_to_config[locomotive.name]
+	local config = train_record.config
 	train_record.animations = {}
+	
 	for sheet = 0, config.layers[1].spritter_table.file_count - 1 do
-		-- draw_animation{animation=…, orientation?=…, x_scale?=…, y_scale?=…, tint?=…, render_layer?=…, animation_speed?=…, animation_offset?=…, orientation_target?=…, use_target_orientation?=…, oriented_offset?=…, target=…, surface=…, time_to_live?=…, blink_interval?=…, forces?=…, players?=…, visible?=…, only_in_alt_mode?=…, render_mode?=…}
 		local animation = rendering.draw_animation{
 			animation = "atl-" .. config.name .. "-" .. sheet,
 			orientation = 0,
@@ -305,6 +307,8 @@ local function draw_locomotives(locomotives)
 		local train_record = known_trains[unit_number]
 		if not train_record then
 			local config = entity_to_config[locomotive.name]
+			local frames_per_rotation = config.frames_per_rotation
+
 			train_record = {
 				frame = 0,
 				frame_progress = 0,
@@ -313,8 +317,12 @@ local function draw_locomotives(locomotives)
 				animation_speed_multiplier = config.animation_speed_multiplier or 1,
 				prev_direction = nil,
 				active_sheet = nil,
+
 				config = config,
 				sheets = sheet_indices[locomotive.name],
+
+				frames_per_rotation = frames_per_rotation,
+				frame_factor = frames_per_rotation / four_pi_squared,
 			}
 			known_trains[unit_number] = train_record
 		end
@@ -323,8 +331,7 @@ local function draw_locomotives(locomotives)
 			create_sheets(train_record, locomotive)
 		end
 
-		local config = train_record.config
-		local frames_per_rotation = config.frames_per_rotation
+		local frames_per_rotation = train_record.frames_per_rotation
 
 		local speed = locomotive.speed * train_record.animation_speed_multiplier
 		local direction = floor(locomotive.orientation * rotationframes)
@@ -359,7 +366,7 @@ local function draw_locomotives(locomotives)
 			goto continue
 		end
 
-		local frame_delta = (speed * frames_per_rotation) / four_pi_squared
+		local frame_delta = speed * train_record.frame_factor
 		-- Above is the simplified version of:
 		-- local frames_per_circle = config.frames_per_rotation/(math.pi * 2)
 		-- local angle_delta = (speed / 6.28) * frames_per_circle
