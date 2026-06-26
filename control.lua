@@ -433,7 +433,7 @@ local function draw_locomotives(locomotives)
 	end
 end
 
-local profiler = helpers.create_profiler(true)
+-- local profiler = helpers.create_profiler(true)
 
 ---@param event EventData.on_tick
 script.on_event(defines.events.on_tick, function(event)
@@ -453,12 +453,12 @@ script.on_event(defines.events.on_tick, function(event)
 	frustums_by_surface = frustums_cache
 	visible_locos = visible_locos_cache
 	
-	profiler.reset()
-	for i=1,1 do
-		draw_locomotives(visible_locos)
-	end
-	profiler.stop()
-	game.print( profiler )
+	-- profiler.reset()
+	-- for i=1,5000 do
+	draw_locomotives(visible_locos)
+	-- end
+	-- profiler.stop()
+	-- game.print( profiler )
 end)
 
 
