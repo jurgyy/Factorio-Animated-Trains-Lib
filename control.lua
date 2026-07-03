@@ -6,6 +6,7 @@ local sqrt = math.sqrt
 
 local rotationframes = 128
 
+---@diagnostic disable-next-line: duplicate-doc-alias
 ---@alias unit_number integer
 ---@alias surface_index integer
 
@@ -336,8 +337,9 @@ local function draw_locomotives(locomotives)
 			}
 			known_trains[unit_number] = train_record
 		end
-
+		
 		if not train_record.animations then
+			---@cast train_record -LuaEntity
 			create_sheets(train_record, locomotive)
 		end
 
