@@ -10,6 +10,9 @@ for entity_name, _ in pairs(rolling_stock_config) do
   atl_name_to_name[atl_name] = entity_name
 end
 
+---@type table<unit_number, true>
+local skip = {}
+
 local function call_remote_built_events(source_entity_name, event)
   local remotes = entity_built_configs[source_entity_name]
   if remotes then
@@ -19,10 +22,26 @@ local function call_remote_built_events(source_entity_name, event)
   end
 end
 
+---@param event EventData.on_built_entity
+---@param entity LuaEntity
+---@param atl_name string
 local function handle_source_loco_built(event, entity, atl_name)
   if not prototypes.entity[atl_name] then return end
 
   local surface = entity.surface
+
+  local fast_replace = surface.can_fast_replace{
+    name = atl_name,
+    position = entity.position,
+    direction = entity.direction,
+    force = entity.force
+  }
+  if not fast_replace then
+    game.print("cant fast replace")
+  else
+    game.print("fast replacable")
+  end
+
   ---@type LuaSurface.create_entity_param.locomotive | LuaSurface.create_entity_param.cargo_wagon
   local entity_data = {
     name = atl_name,
@@ -30,15 +49,18 @@ local function handle_source_loco_built(event, entity, atl_name)
     direction = entity.direction,
     force = entity.force,
     raise_built = true,
+    fast_replace = true,
     create_build_effect_smoke = false,
     orientation = entity.orientation,
     enable_logistics_while_moving = entity.enable_logistics_while_moving,
     grid = entity.grid,
     color = entity.color,
-    copy_color_from_train_stop = entity.copy_color_from_train_stop
+    copy_color_from_train_stop = entity.copy_color_from_train_stop,
+    --player = event.player_index, -- If set will give the player the item back
+    spill = false
   }
   local source_entity_name = entity.name
-  entity.destroy()
+  skip[entity.unit_number] = true
 
   local new_entity = surface.create_entity(entity_data)
   if not new_entity then
@@ -46,6 +68,10 @@ local function handle_source_loco_built(event, entity, atl_name)
     return
   end
 
+  if skip[new_entity.unit_number] then
+    skip[new_entity.unit_number] = nil
+    return
+  end
   event.entity = new_entity
   call_remote_built_events(source_entity_name, event)
 end
@@ -54,9 +80,10 @@ local entity_built = {}
 
 ---@param event EventData.on_built_entity
 entity_built.on_built_entity = function(event)
-  game.print("Entity built event triggered for entity: " .. event.entity.name)
   local entity = event.entity
   if not entity or not entity.valid then return end
+
+  game.print("Entity built event triggered for entity: " .. event.entity.name, {skip=defines.print_skip.never})
 
   local atl_name = name_to_atl_name[entity.name]
   local source_name = atl_name_to_name[entity.name]
@@ -76,7 +103,6 @@ end
 entity_built.on_robot_built_entity = entity_built.on_built_entity
 entity_built.script_raised_built = entity_built.on_built_entity
 
--- TODO fix ghost built trains
 entity_built.on_built_entity_filter = {
   -- {filter = "name", name = "entity-ghost"},
   -- {filter = "type", type = "entity-ghost", mode = "and"},

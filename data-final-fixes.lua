@@ -82,6 +82,10 @@ for name, config in pairs(configs) do
     error("Animated Trains: Could not find item-with-entity-data '" .. name .. "' to apply animated train config to.")
   end
 
+  if not entity.fast_replaceable_group then
+    entity.fast_replaceable_group = "ATL-" .. entity.name
+  end
+
   log("Creating ATL copy of entity '" .. name .. "'")
   local copy = table.deepcopy(entity)
   copy.name = name .. "-ATL"
