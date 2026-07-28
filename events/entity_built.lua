@@ -10,9 +10,6 @@ for entity_name, _ in pairs(rolling_stock_config) do
   atl_name_to_name[atl_name] = entity_name
 end
 
----@type table<unit_number, true>
-local skip = {}
-
 local function call_remote_built_events(source_entity_name, event)
   local remotes = entity_built_configs[source_entity_name]
   if remotes then
@@ -36,11 +33,6 @@ local function handle_source_loco_built(event, entity, atl_name)
     direction = entity.direction,
     force = entity.force
   }
-  if not fast_replace then
-    game.print("cant fast replace")
-  else
-    game.print("fast replacable")
-  end
 
   ---@type LuaSurface.create_entity_param.locomotive | LuaSurface.create_entity_param.cargo_wagon
   local entity_data = {
@@ -48,7 +40,7 @@ local function handle_source_loco_built(event, entity, atl_name)
     position = entity.position,
     direction = entity.direction,
     force = entity.force,
-    raise_built = true,
+    raise_built = false, -- Will be called manually after the entity is created
     fast_replace = true,
     create_build_effect_smoke = false,
     orientation = entity.orientation,
@@ -60,7 +52,6 @@ local function handle_source_loco_built(event, entity, atl_name)
     spill = false
   }
   local source_entity_name = entity.name
-  skip[entity.unit_number] = true
 
   local new_entity = surface.create_entity(entity_data)
   if not new_entity then
@@ -68,10 +59,6 @@ local function handle_source_loco_built(event, entity, atl_name)
     return
   end
 
-  if skip[new_entity.unit_number] then
-    skip[new_entity.unit_number] = nil
-    return
-  end
   event.entity = new_entity
   call_remote_built_events(source_entity_name, event)
 end
@@ -83,7 +70,7 @@ entity_built.on_built_entity = function(event)
   local entity = event.entity
   if not entity or not entity.valid then return end
 
-  game.print("Entity built event triggered for entity: " .. event.entity.name, {skip=defines.print_skip.never})
+  game.print("Entity built event triggered for entity: " .. event.entity.name, {skip=defines.print_skip.never, sound = defines.print_sound.never})
 
   local atl_name = name_to_atl_name[entity.name]
   local source_name = atl_name_to_name[entity.name]
