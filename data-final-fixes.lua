@@ -29,7 +29,7 @@
 ---@field sprite_count integer Total number of frames across the entire animation
 ---@field height integer Width of each individual sprite frame
 ---@field width integer Height of each individual sprite frame
----@field shift number[] Shift of the sprite, index 1 is the x axis, index 2 is the y axis
+---@field shift {[1]: number, [2]: number} Shift of the sprite, index 1 is the x axis, index 2 is the y axis
 ---@field scale number Scale of the sprite
 
 --------
@@ -37,6 +37,8 @@
 local configs = require("global/config_loader").get_rolling_stock_config()
 
 for name, config in pairs(configs) do
+	if not config.layers[1] then error("First layer does not exist") end
+  
   local spritter_lua = config.layers[1].spritter_table
   local frames_last_sheet = spritter_lua.sprite_count % (spritter_lua.line_length * spritter_lua.lines_per_file)
   

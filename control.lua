@@ -6,23 +6,24 @@ local sqrt = math.sqrt
 
 local rotationframes = 128
 
----@diagnostic disable-next-line: duplicate-doc-alias
----@alias unit_number integer
+---@diagnostic disable-next-line: duplicate-type
+---@alias unit_number uint64
 ---@alias surface_index integer
 
 ---@class TrainRecord
 ---@field frame integer
 ---@field frame_progress number         -- fractional progress within current frame [0,1)
 ---@field ticks_until_update integer?   -- how many ticks can be skipped before the frame might change
----@field animations LuaRenderObject[]? Array of all possible animation sheets the locomotive can use
+---@field animations LuaRenderObject[]  -- Array of all possible animation sheets the locomotive can use
 ---@field active_sheet integer? Currently active sheet index
 ---@field prev_direction integer? Previously used direction index
----@field animation_speed_multiplier number? Multiplier for animation speed based on locomotive speed
+---@field animation_speed_multiplier number Multiplier for animation speed based on locomotive speed
 ---@field config AnimatedTrainsConfig   -- cached config for this locomotive
 ---@field sheets_numbers table                  -- cached sheet number for this locomotive
 ---@field sheets_offsets table                  -- cached sheet offset for this locomotive
 ---@field frames_per_rotation integer
----@field frame_factor number         -- frames_per_rotation / four_pi_squared
+---@field frame_factor number           -- frames_per_rotation / four_pi_squared
+---@field skipped_ticks integer				  -- Number of ticks that haven't progressed the animation
 
 ---@class Frustum
 ---@field x number x position of the player
@@ -109,7 +110,8 @@ local function get_players_frustums()
 
 	for _, player in pairs(game.connected_players) do
 		if player.character then
-			local position = player.position
+			local position = player.position --[[@as MapPosition.struct]]
+
 			-- TODO cache all the fixed values per player
 			local zoom = player.zoom
 			if zoom < 0.4 then
@@ -184,16 +186,21 @@ local function get_visible_locomotives(players_by_surface)
 
 		for ti = 1, n_trains do
 			local train = trains[ti]
+			---@cast train -?
 
 			local carriages = train.carriages
 			local n_carriages = #carriages
 
+			---@diagnostic disable-next-line: need-check-nil
 			local first_pos = carriages[1].position
+			---@cast first_pos MapPosition.struct
+
 			local train_extent = n_carriages * CARRIAGE_SIZE
 
 			local skip_for_all_players = true
 			for pi = 1, n_players do
 				local player = players[pi]
+				---@cast player -?
 				local dx = player.x - first_pos.x
 				local dy = player.y - first_pos.y
 				local dist_sq = dx * dx + dy * dy
@@ -211,8 +218,10 @@ local function get_visible_locomotives(players_by_surface)
 			for _, locomotive in pairs(train.carriages) do
 				if not locos[locomotive.name] then goto continue_carriage end
 				--for _, locomotive in pairs(loco_list) do
-					local lx = locomotive.position.x
-					local ly = locomotive.position.y
+				---@cast locomotive.position MapPosition.struct
+				local lx = locomotive.position.x
+				local ly = locomotive.position.y
+
 					for _, p in pairs(players) do
 						local dx = p.x - lx
 						local dy = p.y - ly
@@ -240,6 +249,7 @@ local sheet_indices_numbers = {}
 ---@type table<string, table<integer, table<integer, integer>>>
 local sheet_indices_offsets = {}
 for name, config in pairs(entity_to_config) do
+  ---@diagnostic disable-next-line: need-check-nil
   local spritterLua = config.layers[1].spritter_table
   local frames_per_sheet = spritterLua.line_length * spritterLua.lines_per_file
 
@@ -272,6 +282,8 @@ local function create_sheets(train_record, locomotive)
 	local config = train_record.config
 	train_record.animations = {}
 	
+	if not config.layers[1] then error("First layer does not exist") end
+
 	for sheet = 0, config.layers[1].spritter_table.file_count - 1 do
 		local animation = rendering.draw_animation{
 			animation = "atl-" .. config.name .. "-" .. sheet,
@@ -335,16 +347,13 @@ local function draw_locomotives(locomotives)
 				frames_per_rotation = frames_per_rotation,
 				frame_factor = frames_per_rotation / four_pi_squared,
 			}
+			create_sheets(train_record, locomotive)
 			known_trains[unit_number] = train_record
 		end
 		
-		if not train_record.animations then
-			---@cast train_record -LuaEntity
-			create_sheets(train_record, locomotive)
-		end
-
 		local frames_per_rotation = train_record.frames_per_rotation
 
+		---@cast locomotive.speed -?
 		local speed = locomotive.speed * train_record.animation_speed_multiplier
 		local direction = floor(locomotive.orientation * rotationframes)
 		local prev_direction = train_record.prev_direction
@@ -367,6 +376,7 @@ local function draw_locomotives(locomotives)
 			local active_sheet = train_record.active_sheet
 			if active_sheet ~= sheet_number then
 				if active_sheet then
+					---@diagnostic disable-next-line: need-check-nil
 					train_record.animations[active_sheet].visible = false
 				end
 				animation.visible = true
@@ -425,6 +435,7 @@ local function draw_locomotives(locomotives)
 		local active_sheet = train_record.active_sheet
 		if active_sheet ~= sheet_number then
 			if active_sheet then
+				---@diagnostic disable-next-line: need-check-nil
 				train_record.animations[active_sheet].visible = false
 			end
 			animation.visible = true
@@ -463,7 +474,7 @@ script.on_event(defines.events.on_tick, function(event)
 	-- game.print( profiler )
 end)
 
-
+---@type AnimatedRollingStockBuiltEventLibrary
 local entity_built = require("events/entity_built")
 script.on_event(defines.events.on_built_entity, entity_built.on_built_entity, entity_built.on_built_entity_filter)
 script.on_event(defines.events.on_robot_built_entity, entity_built.on_robot_built_entity, entity_built.on_robot_built_entity_filter)

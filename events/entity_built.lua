@@ -10,6 +10,8 @@ for entity_name, _ in pairs(rolling_stock_config) do
   atl_name_to_name[atl_name] = entity_name
 end
 
+---@param source_entity_name string
+---@param event EventData.on_built_entity
 local function call_remote_built_events(source_entity_name, event)
   local remotes = entity_built_configs[source_entity_name]
   if remotes then
@@ -45,7 +47,7 @@ local function handle_source_loco_built(event, entity, atl_name)
     create_build_effect_smoke = false,
     orientation = entity.orientation,
     enable_logistics_while_moving = entity.enable_logistics_while_moving,
-    grid = entity.grid,
+    -- grid = entity.grid, -- TODO Fix this. The line was wrong (Thanks EmmyLua)
     color = entity.color,
     copy_color_from_train_stop = entity.copy_color_from_train_stop,
     --player = event.player_index, -- If set will give the player the item back
@@ -106,4 +108,11 @@ entity_built.on_built_entity_filter = {
 entity_built.on_robot_built_entity_filter = entity_built.on_built_entity_filter
 entity_built.script_built_filter = entity_built.on_built_entity_filter
 
+---@class AnimatedRollingStockBuiltEventLibrary
+---@field on_built_entity fun(event: EventData.on_built_entity)
+---@field on_robot_built_entity fun(event: EventData.on_built_entity)
+---@field script_raised_built fun(event: EventData.on_built_entity)
+---@field on_built_entity_filter table
+---@field on_robot_built_entity_filter table
+---@field script_built_filter table
 return entity_built

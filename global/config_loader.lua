@@ -1,20 +1,13 @@
----@alias atl_entity_built_data_type "atl-entity-built-config"
+---@alias atl_entity_built_data_type "AnimatedTrainsEntityBuiltConfig"
 
 ---@type atl_data_type
 local rolling_stock_data_type = "atl-config"
 local rolling_stock_config_cache = nil
 
 ---@type atl_entity_built_data_type
-local entity_built_config_type = "atl-entity-built-config"
+local entity_built_config_type = "AnimatedTrainsEntityBuiltConfig"
 local entity_built_config_cache = nil
 
----@class AnimatedTrainsEntityBuiltConfigModData : data.ModData
----@field data_type atl_entity_built_data_type
----@field data AnimatedTrainsEntityBuiltConfig
-
----@class LuaAnimatedTrainsEntityBuiltConfigModData : LuaModData
----@field data_type atl_entity_built_data_type
----@field data AnimatedTrainsEntityBuiltConfig
 
 ---@class AnimatedTrainsEntityBuiltConfig
 ---@field remote_interface string Remote interface to call when an entity is built
